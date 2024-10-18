@@ -1,0 +1,66 @@
+<div class="container">
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title class="header-title-cnt">
+        <img class="github-img" src="assets/images/github.png" />
+        <label>Github</label>
+        <ng-container *ngIf="connected">
+          <mat-icon class="icon">check_circle</mat-icon>
+          <mat-icon class="icon">history</mat-icon>
+        </ng-container>
+      </mat-panel-title>
+      <mat-panel-description *ngIf="integrationData$ | async as data">
+        <div class="header-description-cnt">
+          <p>
+            <span class="type">{{ data.type }}: </span>
+            <span
+              >Last Synced:{{
+                data.connectedAt | date : "yyyy-MM-dd hh:mm aa"
+              }}</span
+            >
+          </p>
+          <p>Sync Type: Full</p>
+        </div>
+      </mat-panel-description>
+    </mat-expansion-panel-header>
+    <mat-panel-title *ngIf="!connected">
+      <div class="contect-cnt">
+        <button mat-raised-button color="primary" (click)="connect()">
+          Connect to GitHub
+        </button>
+        <mat-panel-title>
+          <p>Connect Sredio to GitHub</p>
+        </mat-panel-title>
+      </div>
+    </mat-panel-title>
+    <mat-panel-title class="remove-cnt" *ngIf="connected">
+      <div class="ag-cnt ag-theme-quartz">
+        <ag-grid-angular
+          [rowData]="repos"
+          [columnDefs]="columnDefs"
+          (selectionChanged)="
+            onRepoChecked($event.api.getSelectedNodes())
+          "
+          rowSelection="multiple"
+          style="width: 70%; height: 400px"
+        >
+        </ag-grid-angular>
+        <div class="details-cnt" *ngIf="repoDetails.length">
+          <h4>Repo Details</h4>
+          <ag-grid-angular
+  
+            [rowData]="repoDetails"
+            [columnDefs]="statsColumnDefs"
+            style="width: 70%; height: 400px"
+          >
+          </ag-grid-angular>
+        </div>
+
+      </div>
+
+      <button mat-raised-button color="warn" (click)="remove()">
+        Remove Integration
+      </button>
+    </mat-panel-title>
+  </mat-expansion-panel>
+</div>
