@@ -11,7 +11,7 @@ export class GithubIntegrationService {
   private _token?: string;
   private _headers?: HttpHeaders;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   private _initHeader() {
     this._headers = new HttpHeaders({
@@ -67,6 +67,7 @@ export class GithubIntegrationService {
     repositories: GitHubRepo[];
     totalPages: number;
     currentPage: number;
+    totalCount: number;
   }> {
     const params = new HttpParams().set('page', page).set('limit', limit);
 
@@ -74,6 +75,8 @@ export class GithubIntegrationService {
       repositories: GitHubRepo[];
       totalPages: number;
       currentPage: number;
+      totalCount: number;
+
     }>(`${this.baseUrl}/github/organizations/repos`, {
       params,
       headers: this._headers,

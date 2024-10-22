@@ -41,7 +41,9 @@
           [gridOptions]="gridOptions"
           [paginationPageSize]="pageSize"
           [pagination]="true"
+          (onPaginationChanged)="onPaginationChanged($event)"
           style="width: 100%; height: 400px"
+          (gridReady)="onGridReady($event)"
         >
         </ag-grid-angular>
       </div>

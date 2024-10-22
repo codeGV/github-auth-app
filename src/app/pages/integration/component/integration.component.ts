@@ -19,8 +19,18 @@ export class IntegrationComponent implements OnInit {
   repos: GitHubRepo[] = [];
   repoDetails: RepoDetails[] = [];
   currentPage: number = 1;
-  totalPages: number = 1;
-  pageSize: number = 2;
+  totalPages: number = 2;
+  pageSize: number = 10;
+  gridApi:any;
+  gridOptions:GridOptions = {
+    pagination: true,
+    paginationPageSize: 10,   
+             
+    // domLayout: 'autoHeight',
+    rowModelType: 'serverSide',  
+    cacheBlockSize: this.pageSize,
+    paginationPageSizeSelector: [10, 20, 50, 100],
+  };
 
   columnDefs: ColDef[] = [
     { field: 'repoId', headerName: 'ID' },
@@ -34,17 +44,14 @@ export class IntegrationComponent implements OnInit {
     { field: 'commits', headerName: 'Total Commits' },
     { field: 'pullRequests', headerName: 'Total Pull Requests' },
     { field: 'issues', headerName: 'Total Issues' },
-    // { field: 'include', headerName: 'Include', checkboxSelection: true },
     {
       field: 'include',
       headerName: 'Include',
       cellRenderer: (params: any) => {
-        // Create a checkbox element
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = params.value; // Value is the `include` field
+        checkbox.checked = params.value;
         checkbox.addEventListener('change', () => {
-          // Trigger the include update on checkbox change
           this.onRepoChecked(params.data);
         });
         return checkbox;
@@ -52,11 +59,6 @@ export class IntegrationComponent implements OnInit {
     },
   ];
 
-  gridOptions: GridOptions = {
-    pagination: true,
-    paginationPageSize: this.pageSize,
-    // onPaginationChanged: () => this.loadRepos(this.currentPage),
-  };
 
   constructor(
     private _githubService: GithubIntegrationService,
@@ -70,6 +72,17 @@ export class IntegrationComponent implements OnInit {
     if (githubId) {
       this.fetchIntegration(githubId);
     }
+  }
+  // onGridReady(params:any) {
+  //   console.log('params::',params)
+  //   this.gridApi = params.api;;
+  // }
+
+  
+  onGridReady(params: any) {
+    console.log('params::',params)
+    this.gridApi = params.api;
+    this.loadRepos(this.currentPage);
   }
 
   connect() {
@@ -99,11 +112,26 @@ export class IntegrationComponent implements OnInit {
     });
   }
 
-  loadRepos(page: number) {
+  // loadRepos(page: number) {
+  //   this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
+  //     this.repos = data.repositories;
+  //     this.totalPages = data.totalPages;
+  //     this.currentPage = data.currentPage;
+  //     this.gridApi.paginationSetRowCount(data.totalCount, false);
+  //     this._cdr.detectChanges();
+  //   });
+  // }
+
+    loadRepos(page: number) {
     this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
       this.repos = data.repositories;
       this.totalPages = data.totalPages;
       this.currentPage = data.currentPage;
+
+      if (this.gridApi) {
+        this.gridApi.paginationSetRowCount(data.totalCount, false);
+      }
+
       this._cdr.detectChanges();
     });
   }
@@ -145,5 +173,9 @@ export class IntegrationComponent implements OnInit {
       this.currentPage--;
       this.loadRepos(this.currentPage);
     }
+  }
+  onPaginationChanged(event:any){
+    console.log('pagination event',event)
+
   }
 }
