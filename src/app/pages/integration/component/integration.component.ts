@@ -5,41 +5,65 @@ import { Integration } from 'src/app/models/integration.model';
 import { GitHubRepo, RepoDetails } from 'src/app/models/repo.model';
 import { BehaviorSubject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ColDef } from 'ag-grid-community'
-
+import { ColDef, GridOptions } from 'ag-grid-community';
 
 @Component({
   selector: 'app-integration',
   templateUrl: './integration.component.html',
   styleUrls: ['./integration.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  // changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class IntegrationComponent implements OnInit {
   connected: boolean = false;
   integrationData$ = new BehaviorSubject<Integration | null>(null);
   repos: GitHubRepo[] = [];
-  repoDetails: RepoDetails[] = []
+  repoDetails: RepoDetails[] = [];
+  currentPage: number = 1;
+  totalPages: number = 1;
+  pageSize: number = 2;
 
   columnDefs: ColDef[] = [
-    { field: 'id', headerName: 'ID' },
+    { field: 'repoId', headerName: 'ID' },
     { field: 'name', headerName: 'Name' },
-    { field: 'html_url', headerName: 'Link', cellRenderer: (params: any) => `<a href="${params.value}" target="_blank">${params.value}</a>` },
-    { field: 'name', headerName: 'Slug' },
-    { field: 'include', headerName: 'Include', checkboxSelection: true },
+    {
+      field: 'url',
+      headerName: 'Link',
+      cellRenderer: (params: any) => `<a href="${params.value}" target="_blank">${params.value}</a>`,
+    },
+    { field: 'owner', headerName: 'User' },
+    { field: 'commits', headerName: 'Total Commits' },
+    { field: 'pullRequests', headerName: 'Total Pull Requests' },
+    { field: 'issues', headerName: 'Total Issues' },
+    // { field: 'include', headerName: 'Include', checkboxSelection: true },
+    {
+      field: 'include',
+      headerName: 'Include',
+      cellRenderer: (params: any) => {
+        // Create a checkbox element
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = params.value; // Value is the `include` field
+        checkbox.addEventListener('change', () => {
+          // Trigger the include update on checkbox change
+          this.onRepoChecked(params.data);
+        });
+        return checkbox;
+      },
+    },
   ];
 
-  statsColumnDefs: ColDef[] = [
-    { field: 'userId', headerName: 'UserID' },
-    { field: 'user', headerName: 'User' },
-    { field: 'totalCommits', headerName: 'Total Commits' },
-    { field: 'totalPullRequests', headerName: 'Total Pull Requests' },
-    { field: 'totalIssues', headerName: 'Total Issues' }
-  ];
+  gridOptions: GridOptions = {
+    pagination: true,
+    paginationPageSize: this.pageSize,
+    // onPaginationChanged: () => this.loadRepos(this.currentPage),
+  };
 
-  constructor(private _githubService: GithubIntegrationService,
+  constructor(
+    private _githubService: GithubIntegrationService,
     private _actRoute: ActivatedRoute,
     private _cdr: ChangeDetectorRef,
-    private _snackBar: MatSnackBar) { }
+    private _snackBar: MatSnackBar
+  ) {}
 
   ngOnInit(): void {
     const githubId = this._actRoute.snapshot.queryParams['id'];
@@ -57,9 +81,8 @@ export class IntegrationComponent implements OnInit {
       (data) => {
         this.connected = true;
         this.integrationData$.next(new Integration(data));
-        this.loadRepos()
+        this.loadRepos(this.currentPage);
         this.showMessage('Integration successfully completed');
-
       },
       (error) => {
         console.error('Error fetching integration:', error);
@@ -72,40 +95,55 @@ export class IntegrationComponent implements OnInit {
     this._githubService.removeIntegration(this.integrationData$.value?.githubId).subscribe(() => {
       this.connected = false;
       this.integrationData$.next(null);
-      this.showMessage('Integration removed')
-    });
-  };
-
-  loadRepos() {
-    this._githubService.getAllReposForOrgs().subscribe((data) => {
-      this.repos = data;
+      this.showMessage('Integration removed');
     });
   }
 
-  onRepoChecked(event: Array<{ data: GitHubRepo }>) {
-    if (event.length > this.repoDetails.length) {
-      const repo = event.pop()?.data
-      if (repo) {
-        this._githubService.getRepoDetails(repo.owner.login, repo.name).subscribe((details) => {
-          this.repoDetails = [...this.repoDetails, {
-            id: repo.id,
-            userId: repo.owner.id,
-            user: repo.owner.login,
-            totalCommits: details.commits,
-            totalPullRequests: details.pullRequests,
-            totalIssues: details.issues
-          }];
-          this._cdr.detectChanges()
-        });
+  loadRepos(page: number) {
+    this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
+      this.repos = data.repositories;
+      this.totalPages = data.totalPages;
+      this.currentPage = data.currentPage;
+      this._cdr.detectChanges();
+    });
+  }
+
+  onRepoChecked(repo: GitHubRepo) {
+    console.log('AG checkbox:', repo);
+    const newIncludeStatus = !repo.include;
+    this._githubService.toggleRepoInclude(repo._id, newIncludeStatus).subscribe(
+      (data:GitHubRepo) => {
+        this.showMessage(newIncludeStatus ? 'Repo included' : 'Repo excluded');
+        const index = this.repos.findIndex(r => r._id === repo._id);
+        if (index !== -1) {
+          this.repos[index] = { ...data };
+        }
+        this._cdr.detectChanges();
+      },
+      (error) => {
+        console.error('Error updating repo include status:', error);
+        this.showMessage('Error updating repo include status');
       }
-    } else {
-      this.repoDetails = this.repoDetails.filter((repo) => !!event.find((e) => e?.data.id === repo.id))
-    }
+    );
   }
 
   showMessage(msg: string) {
     this._snackBar.open(msg, 'Ok', {
       duration: 3000,
     });
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.loadRepos(this.currentPage);
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.loadRepos(this.currentPage);
+    }
   }
 }
