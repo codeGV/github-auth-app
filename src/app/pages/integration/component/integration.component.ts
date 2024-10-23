@@ -2,35 +2,24 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@
 import { GithubIntegrationService } from '../../../services/github-integration.service';
 import { ActivatedRoute } from '@angular/router';
 import { Integration } from 'src/app/models/integration.model';
-import { GitHubRepo, RepoDetails } from 'src/app/models/repo.model';
+import { GitHubRepo } from 'src/app/models/repo.model';
 import { BehaviorSubject } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ColDef, GridOptions } from 'ag-grid-community';
+import { ColDef, GridApi } from 'ag-grid-community';
+import { CheckboxRendererComponent } from 'src/app/pages/integration/component/checkbox-renderer/checkbox-renderer.component';
 
 @Component({
   selector: 'app-integration',
   templateUrl: './integration.component.html',
   styleUrls: ['./integration.component.scss'],
-  // changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IntegrationComponent implements OnInit {
   connected: boolean = false;
   integrationData$ = new BehaviorSubject<Integration | null>(null);
   repos: GitHubRepo[] = [];
-  repoDetails: RepoDetails[] = [];
-  currentPage: number = 1;
-  totalPages: number = 2;
-  pageSize: number = 10;
-  gridApi:any;
-  gridOptions:GridOptions = {
-    pagination: true,
-    paginationPageSize: 10,   
-             
-    // domLayout: 'autoHeight',
-    rowModelType: 'serverSide',  
-    cacheBlockSize: this.pageSize,
-    paginationPageSizeSelector: [10, 20, 50, 100],
-  };
+  public pageSize = 5;
+  private _gridApi!: GridApi;
 
   columnDefs: ColDef[] = [
     { field: 'repoId', headerName: 'ID' },
@@ -47,18 +36,13 @@ export class IntegrationComponent implements OnInit {
     {
       field: 'include',
       headerName: 'Include',
-      cellRenderer: (params: any) => {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = params.value;
-        checkbox.addEventListener('change', () => {
-          this.onRepoChecked(params.data);
-        });
-        return checkbox;
+      cellRendererSelector: (params: any) => {
+        return {
+          component: CheckboxRendererComponent,
+        };
       },
     },
   ];
-
 
   constructor(
     private _githubService: GithubIntegrationService,
@@ -73,16 +57,20 @@ export class IntegrationComponent implements OnInit {
       this.fetchIntegration(githubId);
     }
   }
-  // onGridReady(params:any) {
-  //   console.log('params::',params)
-  //   this.gridApi = params.api;;
-  // }
 
-  
   onGridReady(params: any) {
-    console.log('params::',params)
-    this.gridApi = params.api;
-    this.loadRepos(this.currentPage);
+    this._gridApi = params.api;
+    const dataSource = {
+      getRows: (rowParams: any) => {
+        const page = Math.ceil(rowParams.startRow / this.pageSize) + 1;
+
+        this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
+          rowParams.successCallback(data.repositories, data.totalCount);
+        });
+      },
+    };
+
+    params.api.setDatasource(dataSource);
   }
 
   connect() {
@@ -94,7 +82,6 @@ export class IntegrationComponent implements OnInit {
       (data) => {
         this.connected = true;
         this.integrationData$.next(new Integration(data));
-        this.loadRepos(this.currentPage);
         this.showMessage('Integration successfully completed');
       },
       (error) => {
@@ -112,37 +99,12 @@ export class IntegrationComponent implements OnInit {
     });
   }
 
-  // loadRepos(page: number) {
-  //   this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
-  //     this.repos = data.repositories;
-  //     this.totalPages = data.totalPages;
-  //     this.currentPage = data.currentPage;
-  //     this.gridApi.paginationSetRowCount(data.totalCount, false);
-  //     this._cdr.detectChanges();
-  //   });
-  // }
-
-    loadRepos(page: number) {
-    this._githubService.getAllReposForOrgs(page, this.pageSize).subscribe((data) => {
-      this.repos = data.repositories;
-      this.totalPages = data.totalPages;
-      this.currentPage = data.currentPage;
-
-      if (this.gridApi) {
-        this.gridApi.paginationSetRowCount(data.totalCount, false);
-      }
-
-      this._cdr.detectChanges();
-    });
-  }
-
   onRepoChecked(repo: GitHubRepo) {
-    console.log('AG checkbox:', repo);
     const newIncludeStatus = !repo.include;
     this._githubService.toggleRepoInclude(repo._id, newIncludeStatus).subscribe(
-      (data:GitHubRepo) => {
+      (data: GitHubRepo) => {
         this.showMessage(newIncludeStatus ? 'Repo included' : 'Repo excluded');
-        const index = this.repos.findIndex(r => r._id === repo._id);
+        const index = this.repos.findIndex((r) => r._id === repo._id);
         if (index !== -1) {
           this.repos[index] = { ...data };
         }
@@ -159,23 +121,5 @@ export class IntegrationComponent implements OnInit {
     this._snackBar.open(msg, 'Ok', {
       duration: 3000,
     });
-  }
-
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-      this.loadRepos(this.currentPage);
-    }
-  }
-
-  prevPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      this.loadRepos(this.currentPage);
-    }
-  }
-  onPaginationChanged(event:any){
-    console.log('pagination event',event)
-
   }
 }

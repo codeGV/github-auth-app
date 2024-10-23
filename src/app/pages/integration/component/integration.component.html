@@ -13,11 +13,7 @@
         <div class="header-description-cnt">
           <p>
             <span class="type">{{ data.type }}: </span>
-            <span
-              >Last Synced:{{
-                data.connectedAt | date : "yyyy-MM-dd hh:mm aa"
-              }}</span
-            >
+            <span>Last Synced:{{ data.connectedAt | date : "yyyy-MM-dd hh:mm aa" }}</span>
           </p>
           <p>Sync Type: Full</p>
         </div>
@@ -25,9 +21,7 @@
     </mat-expansion-panel-header>
     <mat-panel-title *ngIf="!connected">
       <div class="contect-cnt">
-        <button mat-raised-button color="primary" (click)="connect()">
-          Connect to GitHub
-        </button>
+        <button mat-raised-button color="primary" (click)="connect()">Connect to GitHub</button>
         <mat-panel-title>
           <p>Connect Sredio to GitHub</p>
         </mat-panel-title>
@@ -38,19 +32,18 @@
         <ag-grid-angular
           [rowData]="repos"
           [columnDefs]="columnDefs"
-          [gridOptions]="gridOptions"
-          [paginationPageSize]="pageSize"
           [pagination]="true"
-          (onPaginationChanged)="onPaginationChanged($event)"
-          style="width: 100%; height: 400px"
+          [paginationPageSize]="pageSize"
+          [rowModelType]="'infinite'"
+          [cacheBlockSize]="pageSize"
+          [maxBlocksInCache]="2"
+          [paginationPageSizeSelector]="[5, 20, 50, 100]"
           (gridReady)="onGridReady($event)"
         >
         </ag-grid-angular>
       </div>
 
-      <button mat-raised-button color="warn" (click)="remove()">
-        Remove Integration
-      </button>
+      <button mat-raised-button color="warn" (click)="remove()">Remove Integration</button>
     </mat-panel-title>
   </mat-expansion-panel>
 </div>

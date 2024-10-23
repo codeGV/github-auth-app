@@ -1,12 +1,5 @@
 
-export interface RepoDetails {
-    id: number;
-    userId: number;
-    user: string;
-    totalCommits: number;
-    totalPullRequests: number;
-    totalIssues: number;
-}
+
 
 export interface GitHubRepo {
     commits: number;

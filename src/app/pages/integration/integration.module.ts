@@ -11,6 +11,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { AgGridModule } from 'ag-grid-angular';
+import { CheckboxRendererComponent } from 'src/app/pages/integration/component/checkbox-renderer/checkbox-renderer.component';
 const routes: Routes = [
   { path: '', component: IntegrationComponent }
 ];
@@ -18,6 +19,7 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     IntegrationComponent,
+    CheckboxRendererComponent
   ],
   imports: [
     CommonModule,
